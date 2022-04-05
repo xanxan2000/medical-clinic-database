@@ -257,25 +257,35 @@ CREATE TABLE approval(
 	FOREIGN KEY(patient_id) REFERENCES patient(patient_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+DELIMITER //
+
+
 CREATE TRIGGER before_appointment
 BEFORE INSERT ON appointment
 
-FOR EACH ROW
-WHEN (SELECT a.specialty_id FROM approval as a WHERE a.patient_id = NEW.patient_id) = (SELECT ds.specialty_id FROM doctor_specialty as ds WHERE ds.employee_id = NEW.doctor_id)
-	;
-ELSE
-	INFORM_PATIENT(NEW.patient_id,(SELECT specialty_name FROM doctor_specialty WHERE employee_id = NEW.doctor_id);
-
-END
-		       
+BEGIN
+	FOR EACH ROW
+		IF (SELECT a.specialty_id FROM approval as a WHERE a.patient_id = NEW.patient_id) = (SELECT ds.specialty_id FROM doctor_specialty as ds WHERE ds.employee_id = NEW.doctor_id) THEN
+		;
+		ELSE
+			INFORM_PATIENT(NEW.patient_id,(SELECT specialty_name FROM doctor_specialty WHERE employee_id = NEW.doctor_id);
+		END IF;
+END; //
+				       
+DELIMITER ;
+				       
+DELIMITER //
 		       
 CREATE TRIGGER room_busy
 AFTER INSERT ON appointment
+BEGIN
+	FOR EACH ROW
+		IF (SELECT a.start FROM appointment as a WHERE a.room_num = NEW.room_num) < NEW.start AND (SELECT a.end FROM appointment as a WHERE a.room_num = NEW.room_num) > NEW.start THEN 
+			INFORM_ADMIN(NEW.appt_id, NEW.room_num);
+		ELSE IF (SELECT a.start FROM appointment as a WHERE a.room_num = NEW.room_num) < NEW.end AND (SELECT a.end FROM appointment as a WHERE a.room_num = NEW.room_num) > NEW.end THEN 
+			INFORM_ADMIN(NEW.appt_id, NEW.room_num);
+		END IF;
 
-FOR EACH ROW
-WHEN (SELECT a.start FROM appointment as a WHERE a.room_num = NEW.room_num) < NEW.start AND (SELECT a.end FROM appointment as a WHERE a.room_num = NEW.room_num) > NEW.start THEN 
-INFORM_ADMIN(NEW.appt_id, NEW.room_num)
-WHEN (SELECT a.start FROM appointment as a WHERE a.room_num = NEW.room_num) < NEW.end AND (SELECT a.end FROM appointment as a WHERE a.room_num = NEW.room_num) > NEW.end THEN 
-INFORM_ADMIN(NEW.appt_id, NEW.room_num)
-
-END
+END; //
+				       
+DELIMITER ;
